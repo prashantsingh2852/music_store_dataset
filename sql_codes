@@ -1,0 +1,180 @@
+create database mysql_projects;
+
+show databases
+
+use mysql_projects
+
+show tables
+
+/*                     ---- list of tables that we have in this database
+album
+artist
+customer
+employee
+genre
+invoice
+invoice_line
+media_type
+playlist
+playlist_track
+track
+*/
+
+
+--------------------------------------------------xx---------------------------
+
+additional set to convert the imported date value in the correct (mysql default) format
+
+
+alter table employee 
+modify column birthdate date
+--- to alter column data type
+
+
+alter table employee 
+modify column hire_date varchar(10);
+--- query to reduce the column size
+
+
+update employee 
+set birthdate = date_format(str_to_date(birthdate,'%d-%m-%Y %H:%i'), '%Y-%m-%d') 
+--- incase if you have default value stored in dd-mm-yyyy hh-mm then in that case you need to use date_format additional
+
+------------------------------------------xx-------------------------------------------
+
+1. Who is the senior most employee based on job title?
+
+select title, first_name, 
+last_name 
+from
+(select *, row_number() over (partition by title order by birthdate) as senior_most_emp
+from employee) emp
+where senior_most_emp = 1
+
+2. Which countries have the most Invoices?
+
+select billing_country, 
+count(billing_country) 
+from invoice i 
+group by billing_country 
+order by 2 desc
+
+3. What are top 3 values of total invoice?
+
+select sum(total) from 
+(select *, row_number() over () as rn from invoice i 
+order by total desc) inv
+where rn <=3
+
+4.Which city has the best customers ? We would like to throw a promotional Music Festival in the city we made the most money. 
+Write a query that returns one city that has the highest sum of invoice totals. 
+Return both the city name & sum of all invoice totals
+	
+select billing_city, 
+sum(total) as city_wise_total 
+from invoice i 
+group by billing_city 
+order by 2 desc
+limit 1
+
+5. Who is the best customer? The customer who has spent the most money will be declared the best customer. 
+Write a query that returns the person who has spent the most money
+
+select c.first_name, 
+c.last_name, 
+sum(total) as most_money_spent
+from customer c 
+left join invoice i 
+on c.customer_id = i.customer_id 
+group by 1, 2
+order by 3 desc
+
+
+6. Write query to return the email, first name, last name, & Genre of all Rock Music listeners.
+Return your list ordered alphabetically by email starting with A
+
+select distinct c.email, 
+c.first_name, 
+c.last_name, 
+g.name 
+from customer c 
+left join invoice i on c.customer_id = i.invoice_id 
+left join invoice_line il on i.invoice_id = il.invoice_id 
+left join track t on il.track_id = t.track_id 
+left join genre g on t.genre_id = g.genre_id 
+where g.name = 'rock'
+order by 1
+
+7. Lets invite the artists who have written the most rock music in our dataset. Write a query that returns the Artist name and total track count of the top 10 rock bands
+
+select a.name, 
+count(a.name) as lyrics_count 
+from artist a 
+left join album a2 on a.artist_id = a2.artist_id 
+left join track t on a2.album_id = t.album_id 
+left join genre g on t.genre_id = g.genre_id 
+where g.name = 'rock'
+group by 1
+order by 2 desc
+
+8. Return all the track names that have a song length longer than the average song length. 
+Return the Name and Milliseconds for each track. Order by the song length with the longest songs listed first
+
+select name, 
+milliseconds
+from track t
+where milliseconds > (select avg(milliseconds) as avg_length
+from track)
+order by 2 desc 
+
+9. Find how much amount spent by each customer on artists? Write a query to return customer name, artist name and total spent
+
+select 
+concat(first_name,' ',last_name) as full_name, 
+at.name,
+round(sum(il.unit_price * il.quantity),2) as total_amt_spent
+from customer c 
+left join invoice i on c.customer_id = i.customer_id
+left join invoice_line il on i.invoice_id = il.invoice_id 
+left join track t on il.track_id = t.track_id 
+left join album a on t.album_id = a.album_id 
+left join artist at on a.album_id = at.artist_id
+group by 1,2
+order by total_amt_spent desc 
+
+10. We want to find out the most popular music Genre for each country.
+We determine the most popular genre as the genre with the highest amount of purchases. 
+Write a query that returns each country along with the top Genre. 
+For countries where the maximum number of purchases is shared return all Genres
+
+select c.country, 
+g.name,
+sum(ild.unit_price * ild.quantity) as total_spent
+from customer c 
+left join invoice i on c.customer_id = i.invoice_id 
+left join invoice_line ild on i.invoice_id = ild.invoice_id
+left join track t on ild.track_id = t.track_id
+left join genre g on t.genre_id = g.genre_id 
+group by 1,2
+order by 3 desc 
+
+11. Write a query that determines the customer that has spent the most on music for each country. 
+Write a query that returns the country along with the top customer and how much they spent. 
+For countries where the top amount spent is shared, provide all customers who spent this amount
+
+select 
+c.country, 
+first_name,
+round(sum(ild.unit_price * ild.quantity),2) as total_spent
+from customer c 
+left join invoice i on c.customer_id = i.invoice_id 
+left join invoice_line ild on i.invoice_id = ild.invoice_id
+left join track t on ild.track_id = t.track_id
+left join genre g on t.genre_id = g.genre_id 
+group by 1,2
+order by 3 desc 
+
+
+
+
+
